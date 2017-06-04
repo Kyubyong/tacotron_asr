@@ -1,0 +1,106 @@
+# -*- coding: utf-8 -*-
+#/usr/bin/python2
+'''
+By kyubyong park. kbpark.linguist@gmail.com. 
+https://www.github.com/kyubyong/tacotron
+'''
+
+from __future__ import print_function
+
+from hyperparams import Hyperparams as hp
+from modules import *
+from data import load_vocab
+import tensorflow as tf
+
+def encode(inputs, is_training=True, scope="encoder", reuse=None):
+    '''
+    Args:
+      inputs: A 2d tensor with shape of [N, T], dtype of int32.
+      is_training: Whether or not the layer is in training mode.
+      scope: Optional scope for `variable_scope`
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+    
+    Returns:
+      A collection of Hidden vectors, whose shape is (N, T, E).
+    '''
+    with tf.variable_scope(scope, reuse=reuse):
+        # Load vocabulary 
+        char2idx, idx2char = load_vocab()
+          
+#         # Character Embedding
+#         inputs = embed(inputs, len(char2idx), hp.embed_size) # (N, T, E)  
+
+        # Encoder pre-net
+        prenet_out = prenet(inputs) # (N, T, E/2)
+
+        # Encoder CBHG 
+        ## Conv1D bank 
+        enc = conv1d_banks(prenet_out, K=hp.encoder_num_banks, is_training=is_training) # (N, T, K * E / 2)
+
+        ### Max pooling
+        enc = tf.layers.max_pooling1d(enc, 2, 1, padding="same")  # (N, T, K * E / 2)
+          
+        ### Conv1D projections
+        enc = conv1d(enc, hp.embed_size//2, 3, scope="conv1d_1") # (N, T, E/2)
+        enc = normalize(enc, type="bn", is_training=is_training, 
+                            activation_fn=tf.nn.relu)
+        enc = conv1d(enc, hp.embed_size//2, 3, scope="conv1d_2") # (N, T, E/2)
+        enc += prenet_out # (N, T, E/2) # residual connections
+          
+        ### Highway Nets
+        for i in range(hp.num_highwaynet_blocks):
+            enc = highwaynet(enc, num_units=hp.embed_size//2, is_training=is_training,
+                                 scope='highwaynet_{}'.format(i)) # (N, T, E/2)
+
+        ### Bidirectional GRU
+        memory = gru(enc, hp.embed_size//2, True) # (N, T, E)
+    
+    return memory
+        
+def decode(decoder_inputs, memory, scope="decoder1", reuse=None):
+    '''
+    Args:
+      decoder_inputs: A 3d tensor with shape of [N, T', C'], where C'=hp.n_mels*hp.r, 
+        dtype of float32. Shifted melspectrogram of sound files.
+      memory: A 3d tensor with shape of [N, T, C], where C=hp.embed_size.
+      scope: Optional scope for `variable_scope`
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+        
+    Returns
+      Predicted melspectrogram tensor with shape of [N, T', C'].
+    '''
+    with tf.variable_scope(scope, reuse=reuse):
+        # Decoder pre-net
+        dec = prenet(decoder_inputs) # (N, T', E/2)
+        
+        # Attention gru
+        attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(hp.embed_size, memory)
+        
+        # Decoder grus
+        for i in (0, 1):
+            with tf.variable_scope("attention_rnn_{}".format(i)):
+                decoder_cell = tf.contrib.rnn.GRUCell(hp.embed_size)
+                cell_with_attetion1 = tf.contrib.seq2seq.DynamicAttentionWrapper(decoder_cell, attention_mechanism, hp.embed_size)
+                outputs, _ = tf.nn.dynamic_rnn(cell_with_attetion1, inputs, dtype=tf.float32) #( 1, 6, 16)
+        
+        decoder_cell2 = tf.contrib.rnn.GRUCell(hp.embed_size)
+        cell_with_attetion2 = tf.contrib.seq2seq.DynamicAttentionWrapper(decoder_cell2, attention_mechanism, hp.embed_size)
+        outputs, _ = tf.nn.dynamic_rnn(cell_with_attetion2, inputs, dtype=tf.float32) #( 1, 6, 16)
+        
+        # attention rnn
+        dec = attention_rnn(dec, memory, hp.embed_size, scope="attention_rnn") # (N, T', E)
+        
+        # decoder rnns
+        dec += gru(dec, hp.embed_size, False, scope="gru1") # (N, T, E)
+        dec += gru(dec, hp.embed_size, False, scope="gru2") # (N, T, E)
+        
+        dec = dec_ + attention_decoder(dec_, memory, hp.embed_size, scope="attention_decoder2") # (N, T', E) # residual connections
+          
+        # Outputs => (N, T', hp.n_mels*hp.r)
+#         out_dim = decoder_inputs.get_shape().as_list()[-1]
+        char2idx, idx2char = load_vocab()
+        outputs = tf.layers.dense(dec, len(char2idx)) 
+    
+    return outputs
