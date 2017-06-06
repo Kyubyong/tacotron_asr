@@ -2,7 +2,7 @@
 #/usr/bin/python2
 '''
 By kyubyong park. kbpark.linguist@gmail.com. 
-https://www.github.com/kyubyong/tacotron
+https://www.github.com/kyubyong/tacotron_asr
 '''
 from __future__ import print_function
 
@@ -33,36 +33,6 @@ def make_info():
             
             fout.write("%s\t%.2f\t%s\n" % (sound_fpath, duration, text))
 
-def make_vocab():
-    # make character vocab first
-    vocab = "ES abcdefghijklmnopqrstuvwxyz'" # E: Empty, S: EOS
-    vocab = [elem for elem in vocab]
-    
-    # append common words to vocab
-    assert os.path.exists('preprocessed/info.txt'), "Did you run `prepro.py`?"
-    
-    word2cnt = dict()
-    for line in tqdm(open('preprocessed/info.txt', 'r')):
-        try:
-            _, _, sent = line.split("\t")
-            text = re.sub(r"[^ a-z']", "", sent.lower()).strip()
-            for word in text.split():
-                if word in word2cnt:
-                    word2cnt[word] += 1
-                else:
-                    word2cnt[word] = 1
-        except ValueError:
-            print(line)
-            continue
-            
-    c = Counter(word2cnt)
-    t = c.most_common(hp.max_word_vocab_size)
-    vocab = vocab + [word for word, cnt in c.most_common(hp.max_word_vocab_size) if word not in vocab] 
-    
-    # write vocab to a file
-    with open("preprocessed/vocab.txt", "w") as fout:
-        fout.write("\n".join(vocab))
-
 def make_data():
     from data import load_vocab, text2idx
     
@@ -75,7 +45,6 @@ def make_data():
         try:
             sound_fpath, duration, text = line.strip().split('\t')
         except ValueError:
-            print("Oops! Seems that this line has some problem => ", line)
             continue
         
         cleaned, converted = text2idx(text)
@@ -85,8 +54,8 @@ def make_data():
             texts.append(cleaned)
     
     # Split into train and eval
-    X_train, Y_train = sound_fpaths[:-hp.batch_size], texts_converted[:-hp.batch_size]
-    X_eval, Y_eval = sound_fpaths[-hp.batch_size:], texts[-hp.batch_size:]
+    X_train, Y_train = sound_fpaths[:-10*hp.batch_size], texts_converted[:-10*hp.batch_size]
+    X_eval, Y_eval = sound_fpaths[-10*hp.batch_size:], texts[-10*hp.batch_size:]
     
     # Save
     pickle.dump((X_train, Y_train), open('preprocessed/train.pkl', 'wb'))
@@ -95,9 +64,6 @@ def make_data():
 if __name__ == "__main__":
 #     print("Making info file... Be patient! This might take more than 30 minutes!")
 #     make_info()
-#     
-#     print("Making vocabulary...")
-#     make_vocab()
 
     print("Making training/evaluation data...")
     make_data()

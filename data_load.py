@@ -12,7 +12,6 @@ from tensorflow.python.platform import tf_logging as logging
 
 from hyperparams import Hyperparams as hp
 import numpy as np
-# from prepro import *
 import tensorflow as tf
 from utils import get_spectrogram, reduce_frames
 from data import load_train_data

@@ -32,7 +32,7 @@ def encode(inputs, is_training=True, scope="encoder", reuse=None):
 #         inputs = embed(inputs, len(char2idx), hp.embed_size) # (N, T, E)  
 
         # Encoder pre-net
-        prenet_out = prenet(inputs) # (N, T, E/2)
+        prenet_out = prenet(inputs, scope="prenet", is_training=is_training) # (N, T, E/2)
 
         # Encoder CBHG 
         ## Conv1D bank 
@@ -50,7 +50,7 @@ def encode(inputs, is_training=True, scope="encoder", reuse=None):
           
         ### Highway Nets
         for i in range(hp.num_highwaynet_blocks):
-            enc = highwaynet(enc, num_units=hp.embed_size//2, is_training=is_training,
+            enc = highwaynet(enc, num_units=hp.embed_size//2,
                                  scope='highwaynet_{}'.format(i)) # (N, T, E/2)
 
         ### Bidirectional GRU
@@ -58,7 +58,7 @@ def encode(inputs, is_training=True, scope="encoder", reuse=None):
     
     return memory
         
-def decode(decoder_inputs, memory, scope="decoder1", reuse=None):
+def decode(decoder_inputs, memory, is_training=True, scope="decoder1", reuse=None):
     '''
     Args:
       decoder_inputs: A 3d tensor with shape of [N, T', C'], where C'=hp.n_mels*hp.r, 
@@ -73,33 +73,16 @@ def decode(decoder_inputs, memory, scope="decoder1", reuse=None):
     '''
     with tf.variable_scope(scope, reuse=reuse):
         # Decoder pre-net
-        dec = prenet(decoder_inputs) # (N, T', E/2)
+        dec = prenet(decoder_inputs, is_training=is_training) # (N, T', E/2)
         
-        # Attention gru
-        attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(hp.embed_size, memory)
+       # Attention RNN
+        dec = attention_decoder(dec, memory, hp.embed_size) # (N, T', E)
         
-        # Decoder grus
-        for i in (0, 1):
-            with tf.variable_scope("attention_rnn_{}".format(i)):
-                decoder_cell = tf.contrib.rnn.GRUCell(hp.embed_size)
-                cell_with_attetion1 = tf.contrib.seq2seq.DynamicAttentionWrapper(decoder_cell, attention_mechanism, hp.embed_size)
-                outputs, _ = tf.nn.dynamic_rnn(cell_with_attetion1, inputs, dtype=tf.float32) #( 1, 6, 16)
-        
-        decoder_cell2 = tf.contrib.rnn.GRUCell(hp.embed_size)
-        cell_with_attetion2 = tf.contrib.seq2seq.DynamicAttentionWrapper(decoder_cell2, attention_mechanism, hp.embed_size)
-        outputs, _ = tf.nn.dynamic_rnn(cell_with_attetion2, inputs, dtype=tf.float32) #( 1, 6, 16)
-        
-        # attention rnn
-        dec = attention_rnn(dec, memory, hp.embed_size, scope="attention_rnn") # (N, T', E)
-        
-        # decoder rnns
-        dec += gru(dec, hp.embed_size, False, scope="gru1") # (N, T, E)
-        dec += gru(dec, hp.embed_size, False, scope="gru2") # (N, T, E)
-        
-        dec = dec_ + attention_decoder(dec_, memory, hp.embed_size, scope="attention_decoder2") # (N, T', E) # residual connections
-          
-        # Outputs => (N, T', hp.n_mels*hp.r)
-#         out_dim = decoder_inputs.get_shape().as_list()[-1]
+        # decoder rnn
+        dec += gru(dec, hp.embed_size, False, scope="gru1") # (N, T', E)
+        dec += gru(dec, hp.embed_size, False, scope="gru2") # (N, T', E)
+                  
+        # Outputs => (N, T', V)
         char2idx, idx2char = load_vocab()
         outputs = tf.layers.dense(dec, len(char2idx)) 
     

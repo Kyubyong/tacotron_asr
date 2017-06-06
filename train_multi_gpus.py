@@ -45,28 +45,14 @@ class Graph:
                         with tf.device('/gpu:{}'.format(i)):
                             with tf.name_scope('gpu_{}'.format(i)):
                                 # Encoder
-                                self.memory = encode(self.x[i], is_training=is_training) # (N, T, E)
-                                 
+                                self.memory = encode(self.x[i], is_training=is_training) # (N, T, hp.n_mels*hp.r)
+                                
                                 # Decoder
-                                self.outputs1 = decode1(self.decoder_inputs[i], self.memory) # (N, T', hp.n_mels*hp.r)
-                                self.outputs2 = decode2(self.outputs1, is_training=is_training) # (N, T', (1+hp.n_fft//2)*hp.r)
+                                self.outputs = decode(self.decoder_inputs, self.memory, is_training=is_training) # (N, T', V)
                                  
                                 # Loss
-                                if hp.loss_type=="l1": # L1 loss
-                                    self.loss1 = tf.abs(self.outputs1 - self.y[i])
-                                    self.loss2 = tf.abs(self.outputs2 - self.z[i])
-                                else: # L2 loss
-                                    self.loss1 = tf.squared_difference(self.outputs1, self.y[i])
-                                    self.loss2 = tf.squared_difference(self.outputs2, self.z[i])
-                                    
-                                # Target masking
-                                if hp.target_zeros_masking:
-                                    self.loss1 *= tf.to_float(tf.not_equal(self.y[i], 0.))
-                                    self.loss2 *= tf.to_float(tf.not_equal(self.z[i], 0.))
-                                
-                                self.mean_loss1 = tf.reduce_mean(self.loss1)
-                                self.mean_loss2 = tf.reduce_mean(self.loss2)
-                                self.mean_loss = self.mean_loss1 + self.mean_loss2   
+                                self.istarget = tf.to_float(tf.not_equal(self.y, 0))
+                                self.mean_loss = tf.reduce_sum(self.loss*self.istarget) / (tf.reduce_sum(self.istarget) + 1e-7)
                                 
                                 self.losses.append(self.mean_loss)
                                 self.grads_and_vars = self.optimizer.compute_gradients(self.mean_loss) 
@@ -97,12 +83,13 @@ class Graph:
                 self.x = tf.placeholder(tf.int32, shape=(None, None))
                 self.decoder_inputs = tf.placeholder(tf.float32, shape=(None, None, hp.n_mels*hp.r))
                 
-                # Encoder
-                self.memory = encode(self.x, is_training=is_training) # (N, T, E)
-                 
-                # Decoder
-                self.outputs1 = decode1(self.decoder_inputs, self.memory) # (N, T', hp.n_mels*hp.r)
-                self.outputs2 = decode2(self.outputs1, is_training=is_training) # (N, T', (1+hp.n_fft//2)*hp.r)
+                with tf.variable_scope('net'):
+                    # Encoder
+                    self.memory = encode(self.x[i], is_training=is_training) # (N, T, hp.n_mels*hp.r)
+                    
+                    # Decoder
+                    self.outputs = decode(self.decoder_inputs, self.memory, is_training=is_training) # (N, T', V)
+                                
          
 def main():   
     g = Graph(); print("Training Graph loaded")

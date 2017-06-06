@@ -2,7 +2,7 @@
 #/usr/bin/python2
 '''
 By kyubyong park. kbpark.linguist@gmail.com. 
-https://www.github.com/kyubyong/tacotron
+https://www.github.com/kyubyong/tacotron_asr
 '''
 
 from __future__ import print_function
@@ -14,30 +14,19 @@ from hyperparams import Hyperparams as hp
 
 
 def load_vocab():
-    assert os.path.exists('preprocessed/vocab.txt'), "Did you make vocabulary file?" 
-    
-    vocab = open('preprocessed/vocab.txt', 'r').read().splitlines()
-    
-    token2idx = {token:idx for idx, token in enumerate(vocab)}
-    idx2token = {idx:token for idx, token in enumerate(vocab)}
-    
-    return token2idx, idx2token
+    vocab = "ES abcdefghijklmnopqrstuvwxyz'" # E: Empty
+    char2idx = {char:idx for idx, char in enumerate(vocab)}
+    idx2char = {idx:char for idx, char in enumerate(vocab)}
+    return char2idx, idx2char
 
 def text2idx(text):
     # Load vocabulary
-    token2idx, idx2token = load_vocab() 
+    char2idx, idx2char = load_vocab() 
     
     # Convert
-    converted = []
-    text = re.sub(r"[^ a-z']", "", text.lower()).strip() + " S"
-    for word in text.split():
-        if word in token2idx:
-            converted.append(token2idx[word])
-            converted.append(2) # 2: space
-        else:
-            converted.extend([token2idx[char] for char in word])
-            converted.append(2) # 2: space
-    return text, converted[:-1] # -1: extra space
+    text = re.sub(r"[^ a-z']", "", text.lower()).strip() + "S"
+    converted = [char2idx[char] for char in text]
+    return text, converted
         
 def load_train_data():
     """We train on the whole data but the last mini-batch."""
@@ -48,9 +37,9 @@ def load_eval_data():
     from utils import get_spectrogram, reduce_frames
     """We evaluate on the last mini-batch."""
     sound_fpaths, gt = pickle.load(open('preprocessed/eval.pkl', 'rb')) # gt: ground truth
-    
+
     # Extract spectrogram from sound_fpaths
-    token2idx, idx2token = load_vocab() 
+    char2idx, idx2char = load_vocab() 
     
     xs, maxlen = [], 0
     for sound_fpath in sound_fpaths:

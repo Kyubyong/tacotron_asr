@@ -2,7 +2,7 @@
 #/usr/bin/python2
 '''
 By kyubyong park. kbpark.linguist@gmail.com. 
-https://www.github.com/kyubyong/tacotron
+https://www.github.com/kyubyong/tacotron_asr
 '''
 
 from __future__ import print_function
@@ -39,7 +39,7 @@ def embed(inputs, vocab_size, num_units, zero_pad=True, scope="embedding", reuse
  
 def normalize(inputs, 
               type="bn",
-              decay=.999,
+              decay=.99,
               is_training=True, 
               activation_fn=None,
               scope="normalize"):
@@ -177,7 +177,7 @@ def conv1d_banks(inputs, K=16, is_training=True, scope="conv1d_banks", reuse=Non
                             activation_fn=tf.nn.relu)
         for k in range(2, K+1): # k = 2...K
             with tf.variable_scope("num_{}".format(k)):
-                output = conv1d(inputs, k, hp.embed_size//2, 1)
+                output = conv1d(inputs, hp.embed_size//2, k)
                 output = normalize(output, type="bn", is_training=is_training, 
                             activation_fn=tf.nn.relu)
                 outputs = tf.concat((outputs, output), -1)
@@ -212,8 +212,7 @@ def gru(inputs, num_units=None, bidirection=False, scope="gru", reuse=None):
             outputs, _ = tf.nn.dynamic_rnn(cell, inputs, dtype=tf.float32)
             return outputs
 
-
-def attention_rnn(inputs, memory, num_units=None, scope="attention_decoder", reuse=None):
+def attention_decoder(inputs, memory, num_units=None, scope="attention_decoder", reuse=None):
     '''Applies a GRU to `inputs`, while attending `memory`.
     Args:
       inputs: A 3d tensor with shape of [N, T', C']. Decoder inputs.
@@ -236,7 +235,7 @@ def attention_rnn(inputs, memory, num_units=None, scope="attention_decoder", reu
         outputs, _ = tf.nn.dynamic_rnn(cell_with_attetion, inputs, dtype=tf.float32) #( 1, 6, 16)
     return outputs
 
-def prenet(inputs, scope="prenet", reuse=None):
+def prenet(inputs, is_training=True, scope="prenet", reuse=None):
     '''Prenet for Encoder and Decoder.
     Args:
       inputs: A 3D tensor of shape [N, T, hp.embed_size].
@@ -249,12 +248,12 @@ def prenet(inputs, scope="prenet", reuse=None):
     '''
     with tf.variable_scope(scope, reuse=reuse):
         outputs = tf.layers.dense(inputs, units=hp.embed_size, activation=tf.nn.relu, name="dense1")
-        outputs = tf.nn.dropout(outputs, .5, name="dropout1")
+        outputs = tf.nn.dropout(outputs, keep_prob=.5 if is_training==True else 1., name="dropout1")
         outputs = tf.layers.dense(outputs, units=hp.embed_size//2, activation=tf.nn.relu, name="dense2")
-        outputs = tf.nn.dropout(outputs, .5, name="dropout2") 
+        outputs = tf.nn.dropout(outputs, keep_prob=.5 if is_training==True else 1., name="dropout2") 
     return outputs # (N, T, num_units/2)
 
-def highwaynet(inputs, is_training=True, num_units=None, scope="highwaynet", reuse=None):
+def highwaynet(inputs, num_units=None, scope="highwaynet", reuse=None):
     '''Highway networks, see https://arxiv.org/abs/1505.00387
 
     Args:
