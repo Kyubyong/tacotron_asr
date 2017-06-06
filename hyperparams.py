@@ -9,6 +9,7 @@ class Hyperparams:
     '''Hyper parameters'''
     # data
     vctk = 'VCTK-Corpus/txt/*/*.txt'
+    web = 'WEB'
     max_len = 100 # maximum length of text
     max_duration = 8.0 # maximum duration of a sound file. seconds.
     
@@ -29,7 +30,7 @@ class Hyperparams:
     r = 5 # Reduction factor. Paper => 2, 3, 5
     
     # training scheme
-    lr = 0.001 
+    lr = 0.0003 
     logdir = "logdir"
     batch_size = 32
     num_epochs = 30 

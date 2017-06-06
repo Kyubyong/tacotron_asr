@@ -37,7 +37,6 @@ def load_eval_data():
     from utils import get_spectrogram, reduce_frames
     """We evaluate on the last mini-batch."""
     sound_fpaths, gt = pickle.load(open('preprocessed/eval.pkl', 'rb')) # gt: ground truth
-
     # Extract spectrogram from sound_fpaths
     char2idx, idx2char = load_vocab() 
     

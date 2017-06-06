@@ -17,7 +17,8 @@ from tqdm import tqdm
 
 from hyperparams import Hyperparams as hp
 import numpy as np
-
+import csv
+import codecs
 
 def make_info():
     if not os.path.exists('preprocessed'): os.mkdir('data')
@@ -41,6 +42,7 @@ def make_data():
     
     # Make sound file paths and their texts  
     sound_fpaths, texts_converted, texts = [], [], []
+    # vctk
     for line in tqdm(open('preprocessed/info.txt', 'r')):
         try:
             sound_fpath, duration, text = line.strip().split('\t')
@@ -53,6 +55,17 @@ def make_data():
             texts_converted.append(np.array(converted, np.int32).tostring())
             texts.append(cleaned)
     
+    # WEB
+    reader = csv.reader(codecs.open(hp.web + "/text.csv", 'rb', 'utf-8'))
+    for row in reader:
+        sound_fname, text, duration = row
+        sound_fpath = hp.web + "/" + sound_fname + ".wav"
+        cleaned, converted = text2idx(text)
+        if (len(text) <= hp.max_len) and (1. < float(duration) <= hp.max_duration):
+            sound_fpaths.append(sound_fpath)
+            texts_converted.append(np.array(converted, np.int32).tostring())
+            texts.append(cleaned)
+
     # Split into train and eval
     X_train, Y_train = sound_fpaths[:-10*hp.batch_size], texts_converted[:-10*hp.batch_size]
     X_eval, Y_eval = sound_fpaths[-10*hp.batch_size:], texts[-10*hp.batch_size:]
