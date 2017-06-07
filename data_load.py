@@ -136,6 +136,7 @@ def get_batch():
         # Load data
         sound_fpaths, texts = load_train_data() # string, bytes
         
+        
         # calc total batch count
         num_batch = len(sound_fpaths) // hp.batch_size
          

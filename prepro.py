@@ -19,60 +19,41 @@ from hyperparams import Hyperparams as hp
 import numpy as np
 import csv
 import codecs
-
-def make_info():
-    if not os.path.exists('preprocessed'): os.mkdir('data')
-    with open('preprocessed/info.txt', 'w') as fout:
-        for text_fpath in tqdm(glob.glob(hp.vctk)):
-            # text
-            text = open(text_fpath, 'r').read().strip()
-            
-            # sound
-            sound_fpath = text_fpath.replace("/txt", "/wav48").replace("txt", "wav")
-            y, sr = librosa.load(sound_fpath)
-            duration = librosa.get_duration(y, sr)
-            
-            fout.write("%s\t%.2f\t%s\n" % (sound_fpath, duration, text))
+from data import text2idx
 
 def make_data():
-    from data import load_vocab, text2idx
-    
-    # Load vocabulary
-    token2idx, idx2token = load_vocab() 
-    
-    # Make sound file paths and their texts  
-    sound_fpaths, texts_converted, texts = [], [], []
-    # vctk
-    for line in tqdm(open('preprocessed/info.txt', 'r')):
-        try:
-            sound_fpath, duration, text = line.strip().split('\t')
-        except ValueError:
-            continue
+    sound_fpaths, converteds, texts, multi_texts = [], [], [], set()
+    for text_fpath in tqdm(glob.glob(hp.vctk)):
         
-        cleaned, converted = text2idx(text)
-        if (len(converted) <= hp.max_len) and (1. < float(duration) <= hp.max_duration):
+        # text
+        text = open(text_fpath, 'r').read().strip()
+        text, converted = text2idx(text)
+        
+        if len(text) <= hp.max_len:
+            # sound
+            sound_fpath = text_fpath.replace("/txt", "/wav48").replace("txt", "wav")
+            
+            if text in texts:
+                
+                multi_texts.add(text)
             sound_fpaths.append(sound_fpath)
-            texts_converted.append(np.array(converted, np.int32).tostring())
-            texts.append(cleaned)
-    
-    # WEB
-    reader = csv.reader(codecs.open(hp.web + "/text.csv", 'rb', 'utf-8'))
-    for row in reader:
-        sound_fname, text, duration = row
-        sound_fpath = hp.web + "/" + sound_fname + ".wav"
-        cleaned, converted = text2idx(text)
-        if (len(text) <= hp.max_len) and (1. < float(duration) <= hp.max_duration):
-            sound_fpaths.append(sound_fpath)
-            texts_converted.append(np.array(converted, np.int32).tostring())
-            texts.append(cleaned)
-
-    # Split into train and eval
-    X_train, Y_train = sound_fpaths[:-10*hp.batch_size], texts_converted[:-10*hp.batch_size]
-    X_eval, Y_eval = sound_fpaths[-10*hp.batch_size:], texts[-10*hp.batch_size:]
-    
-    # Save
-    pickle.dump((X_train, Y_train), open('preprocessed/train.pkl', 'wb'))
-    pickle.dump((X_eval, Y_eval), open('preprocessed/eval.pkl', 'wb'))
+            converteds.append(np.array(converted, np.int32).tostring())
+            texts.append(text)
+    #print(len(texts))
+    s_train, c_train = [], []
+    s_eval, t_eval = [], []
+    for s, c, t in zip(sound_fpaths, converteds, texts):
+        if t not in multi_texts and len(s_eval) < 10*hp.batch_size:
+            s_eval.append(s)
+            t_eval.append(t)
+            
+        else:
+            s_train.append(s)
+            c_train.append(c)
+    #print(c_train[0])
+    #print("\n".join(t_eval[:10]))        
+    pickle.dump((s_train, c_train), open('data/train.pkl', 'wb'))
+    pickle.dump((s_eval, t_eval), open('data/eval.pkl', 'wb'))
 
 if __name__ == "__main__":
 #     print("Making info file... Be patient! This might take more than 30 minutes!")

@@ -34,7 +34,7 @@ def eval():
             # Get model name
             mname = open(hp.logdir + '/checkpoint', 'r').read().split('"')[1]
             
-            print(len(X),hp.batch_size)
+            
             # Speech to Text
             if not os.path.exists('samples'): os.mkdir('samples') 
             with codecs.open('samples/{}.txt'.format(mname), 'w', 'utf-8') as fout:

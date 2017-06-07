@@ -30,7 +30,7 @@ class Hyperparams:
     r = 5 # Reduction factor. Paper => 2, 3, 5
     
     # training scheme
-    lr = 0.0003 
+    lr = 0.0001 
     logdir = "logdir"
     batch_size = 32
     num_epochs = 30 
