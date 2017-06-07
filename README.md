@@ -1,39 +1,36 @@
-# A (Heavily Documented) TensorFlow Implementation of Tacotron: A Fully End-to-End Text-To-Speech Synthesis Model
+# Speech Recognition Using Tacotron
 
-## **Major History**
-  * June 2, 2017. Added `train_multiple_gpus.py` for multiple gpus.
-  * June 1, 2017. Second draft. I corrected some mistakes with the help of several contributors (THANKS!), and re-factored source codes so that they are more readable and modular. So far, I couldn't get any promising results.
-  * May 17, 2017. First draft. You can run it following the steps below, but probably you should get poor results. I'll be working on debugging this weekend. (**Code reviews and/or contributions are more than welcome!**)
+
+## Motivation
+Tacotron is an end-to-end speech generation model which was first introduced in [Towards End-to-End Speech Synthesis](https://arxiv.org/abs/1703.10135). It takes as input text at the character level, and targets mel filterbanks and the linear spectrogram. Although it is a generation model, I felt like testing how well it can be applied to the speech recognition task.
 
 ## Requirements
   * NumPy >= 1.11.1
-  * TensorFlow >= 1.1
+  * TensorFlow == 1.1
   * librosa
-  * scipy
 
 ## Data
-Since the [original paper](https://arxiv.org/abs/1703.10135) was based on their internal data, I use a freely available one, instead.
+I use the [VCTK Corpus](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html), one of the most popular speech corpora, for my experiment. Because there's no pre-defined split of training and evaluation, 10*(mini batch) samples that don't appear in the training set are reserved for evaluation.
 
-[The World English Bible](https://en.wikipedia.org/wiki/World_English_Bible) is a public domain update of the American Standard Version of 1901 into modern English. Its text and audio recordings are freely available [here](http://www.audiotreasure.com/webindex.htm). Unfortunately, however, each of the audio files matches a chapter, not a verse, so is too long for many machine learning tasks. I had someone slice them by verse manually. You can download them from my dropbox.
-
-## Content
-  * hyperparams.py: includes all hyper parameters that are needed.
-  * prepro.py: loads vocabulary, training/evaluation data.
-  * data_load.py: loads data and put them in queues so multiple mini-bach data are generated in parallel.
-  * utils.py: has several custom operational functions.
-  * modules.py: contains building blocks for encoding/decoding networks.
-  * networks.py: has three core networks, that is, encoding, decoding, and postprocessing network.
-  * train.py: is in charge of training.
-  * eval.py: is in charge of sample synthesis.
-  
+## Contents
+  * `hyperparams.py` includes all hyper parameters.
+  * `prepro.py` creates training and evaluation data to `data/` folder.
+  * `data_load.py` loads data and put them in queues so multiple mini-bach data are generated in parallel.
+  * `utils.py` has some operational functions.
+  * `modules.py` contains building blocks for encoding and decoding networks.
+  * `networks.py` defines encoding and decoding networks.
+  * `train.py` executes training.
+  * `eval.py` executes evaluation.
 
 ## Training
-  * STEP 1. Adjust hyper parameters in `hyperparams.py` if necessary.
-  * STEP 2. Download and extract [the audio data](https://dl.dropboxusercontent.com/u/42868014/WEB.zip) and its [text](https://dl.dropboxusercontent.com/u/42868014/text.csv).
-  * STEP 3. Run `train.py`. or `train_multiple_gpus.py` if you have more than one gpu.
+  * STEP 1. Download and extract [VCTK Corpus](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) and adjust the value of 'vctk' in `hyperparams.py`.
+  * STEP 2. Adjust other hyper parameters in `hyperparams.py` if necessary.
+  * STEP 3. Run `train_multiple_gpus.py` if you want to use more than one gpu, otherwise `train.py`.
 
-## Sample Synthesis
-  * Run `eval.py` to get samples.
+## Evaluation
+  * Run `eval.py` to get speech recognition results for the test set.
 
-### Acknowledgements
-I would like to show my respect to Dave, the host of www.audiotreasure.com and the reader of the audio files.
+## Related projects
+  * [A TensorFlow Implementation of Tacotron: A Fully End-to-End Text-To-Speech Synthesis Model](https://github.com/Kyubyong/tacotron)
+  * [Speech-to-Text-WaveNet : End-to-end sentence level English speech recognition based on DeepMind's WaveNet and tensorflow](https://github.com/buriburisuri/speech-to-text-wavenet)
+
