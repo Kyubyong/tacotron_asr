@@ -74,12 +74,10 @@ def main():
                 if sv.should_stop(): break
                 for step in tqdm(range(g.num_batch), total=g.num_batch, ncols=70, leave=False, unit='b'):
                     sess.run(g.train_op)
-                    if step%10==0:
-                        print(sess.run(g.mean_loss))
                     
                 # Write checkpoint files at every epoch
                 l, gs = sess.run([g.mean_loss, g.global_step])
-                sv.saver.save(sess, hp.logdir + '/model_epoch_%02d_gs_%d_%.2f' % (epoch, gs, l))
+                sv.saver.save(sess, hp.logdir + '/model_gs_%d_%.2f' % (gs, l))
 
 if __name__ == '__main__':
     main()

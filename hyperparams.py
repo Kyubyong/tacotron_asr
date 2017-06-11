@@ -8,12 +8,8 @@ https://www.github.com/kyubyong/tacotron_asr
 class Hyperparams:
     '''Hyper parameters'''
     # data
-    vctk = 'VCTK-Corpus/txt/*/*.txt'
     web = 'WEB'
-    use_vctk = False
-    use_web = True
     max_len = 100 # maximum length of text
-    max_duration = 5.0 # maximum duration of a sound file. seconds.
     
     # signal processing
     sr = 22050 # Sampling rate.
@@ -32,10 +28,8 @@ class Hyperparams:
     r = 5 # Reduction factor. Paper => 2, 3, 5
     
     # training scheme
-    lr = 0.00001 
+    lr = 0.0001 
     logdir = "logdir"
     batch_size = 32
-    num_epochs = 300 
+    num_epochs = 20 
     
-    # inference
-    beam_width = 1 # if beam width is 1, we apply a regular greedy decoding.
