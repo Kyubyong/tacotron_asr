@@ -26,6 +26,7 @@ I use the [VCTK Corpus](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page
   * STEP 1. Download and extract [VCTK Corpus](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) and adjust the value of 'vctk' in `hyperparams.py`.
   * STEP 2. Adjust other hyper parameters in `hyperparams.py` if necessary.
   * STEP 3. Run `train_multiple_gpus.py` if you want to use more than one gpu, otherwise `train.py`.
+  https://u42868014.dl.dropboxusercontent.com/u/42868014/tacotron_asr/logdir.zip
 
 ## Evaluation
   * Run `eval.py` to get speech recognition results for the test set.
