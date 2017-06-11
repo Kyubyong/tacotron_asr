@@ -42,7 +42,9 @@ class Graph:
                 
                 # Decoder
                 self.outputs = decode(self.decoder_inputs, self.memory, is_training=is_training) # (N, T', E)
-             
+                self.logprobs = tf.log(tf.nn.softmax(self.outputs)+1e-10) 
+                self.preds = tf.arg_max(self.outputs, dimension=-1)
+                
             if is_training:  
                 # Loss
                 self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.y, logits=self.outputs)
@@ -72,6 +74,8 @@ def main():
                 if sv.should_stop(): break
                 for step in tqdm(range(g.num_batch), total=g.num_batch, ncols=70, leave=False, unit='b'):
                     sess.run(g.train_op)
+                    if step%10==0:
+                        print(sess.run(g.mean_loss))
                     
                 # Write checkpoint files at every epoch
                 l, gs = sess.run([g.mean_loss, g.global_step])

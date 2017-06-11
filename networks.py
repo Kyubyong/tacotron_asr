@@ -43,9 +43,11 @@ def encode(inputs, is_training=True, scope="encoder", reuse=None):
           
         ### Conv1D projections
         enc = conv1d(enc, hp.embed_size//2, 3, scope="conv1d_1") # (N, T, E/2)
-        enc = normalize(enc, type="bn", is_training=is_training, 
+        enc = normalize(enc, type="in", is_training=is_training, 
                             activation_fn=tf.nn.relu)
         enc = conv1d(enc, hp.embed_size//2, 3, scope="conv1d_2") # (N, T, E/2)
+        enc = normalize(enc, type="in", is_training=is_training, 
+                            activation_fn=None)
         enc += prenet_out # (N, T, E/2) # residual connections
           
         ### Highway Nets

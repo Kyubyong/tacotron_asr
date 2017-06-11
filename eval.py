@@ -34,53 +34,64 @@ def eval():
             # Get model name
             mname = open(hp.logdir + '/checkpoint', 'r').read().split('"')[1]
             
-            
             # Speech to Text
             if not os.path.exists('samples'): os.mkdir('samples') 
-            with codecs.open('samples/{}.txt'.format(mname), 'w', 'utf-8') as fout:
+            with codecs.open('samples/{}_beam_width_{}.txt'.format(mname, hp.beam_width), 'w', 'utf-8') as fout:
                 for num in range(len(X)//hp.batch_size):
                     print("{}/{} is working".format(num+1, len(X)//hp.batch_size))
-                          
+                    fout.write("batch_{}\n".format(num))      
                     x = X[num*hp.batch_size:(num+1)*hp.batch_size]
                     gt = Y[num*hp.batch_size:(num+1)*hp.batch_size]
                     
-                    outputs = np.zeros((hp.batch_size, hp.max_len), np.int32)  
-                    for j in range(hp.max_len):
-                        # predict next character
-                        _outputs = sess.run(g.outputs, {g.x: x, g.y: outputs})
-    #                     if i==0 and j==0: 
-    #                         aa, bb, cc, dd, ee, ff, gg = copy.deepcopy(prenet_out),  copy.deepcopy(decoder_inputs), copy.deepcopy(memory), copy.deepcopy(_outputs), X, copy.deepcopy(outputs), copy.deepcopy(dec) 
-    #                     if i==1 and j==0: 
-    #                         print(np.array_equiv(prenet_out, aa))
-    #                         print(np.array_equiv(decoder_inputs, bb))
-    #                         print(np.array_equiv(memory, cc))
-    #                         
-    #                         print(np.array_equiv(_outputs, dd))
-    #                         print(np.array_equiv(X, ee))
-    #                         print(np.array_equiv(outputs, ff))
-    #                         print(np.array_equiv(dec, gg))
-                        _preds = np.argmax(_outputs, axis=-1)
+                    if hp.beam_width==1:
+                        preds = np.zeros((hp.batch_size, hp.max_len), np.int32)
+                        for j in range(hp.max_len):
+                            _preds = sess.run(g.preds, {g.x: x, g.y: preds})
+                            preds[:, j] = _preds[:, j]
+                    else: # beam decode    
+                        ## first step  
+                        preds = np.zeros((hp.beam_width*hp.batch_size, hp.max_len), np.int32)  #  (bw*N, T)
+                        logprobs = sess.run(g.logprobs, {g.x: x, g.y: np.zeros((hp.batch_size, hp.max_len), np.int32)}) # (N, T, V)
+                        target = logprobs[:, 0, :] # (N, V)
                         
-                        # update character sequence
-                        outputs[:, j] = _preds[:, j]
+                        preds_in_beam = target.argsort()[:, ::-1][:, :hp.beam_width].flatten() # (bw*N,)
+                        preds[:, 0] = preds_in_beam
+                        
+                        logp_in_beam = np.sort(target)[:, ::-1][:, :hp.beam_width].flatten() # (bw*N,)
+                        logp_in_beam = np.repeat(logp_in_beam, hp.beam_width, axis=0) # (bw*bw*N, )
+                         
+                        ## remaining steps
+                        for i in range(1, hp.max_len-1):
+                            logprobs = sess.run(g.logprobs, {g.x: np.repeat(x, hp.beam_width, 0), g.y: preds}) # (bw*N, T, V)
+                            target = logprobs[:, i, :] # (bw*N, V)
+                             
+                            preds_in_beam = target.argsort()[:, ::-1][:, :hp.beam_width].flatten() # (bw*bw*N,)
+                            logp_in_beam += np.sort(target)[:, ::-1][:, :hp.beam_width].flatten() # (bw*bw*N, )
+     
+                            preds = np.repeat(preds, hp.beam_width, axis=0) # (bw*bw*N, T) <- Temporary shape expansion
+                            preds[:, i] = preds_in_beam
+                                   
+                            elems = [] # (bw*N). bw elements are selected out of bw^2
+                            for j, cluster in enumerate(np.split(logp_in_beam, hp.batch_size)): # cluster: (bw*bw,)
+                                if i == hp.max_len-2: # final step
+                                    elem = np.argsort(cluster)[::-1][:1] # final 1 best
+                                    elems.extend(list(elem + j*len(cluster)))
+                                else:
+                                    elem = np.argsort(cluster)[::-1][:hp.beam_width]
+                                    elems.extend(list(elem + j*len(cluster)))
+                            preds = preds[elems] # (N, T) if final step,  (bw*N, T) otherwise. <- shape restored
+                            logp_in_beam = logp_in_beam[elems]
+                            logp_in_beam = np.repeat(logp_in_beam, hp.beam_width, axis=0) # (bw*bw*N, )
+                            
+                            for l, pred in enumerate(preds[:hp.beam_width]):
+                                fout.write(str(l) + " " + u"".join(idx2char[idx] for idx in pred).split("S")[0] + "\n")
                 
                     # Write to file
-                    for i, (expected, got) in enumerate(zip(gt, outputs)): # ground truth vs. prediction
+                    for i, (expected, got) in enumerate(zip(gt, preds)): # ground truth vs. prediction
                         fout.write("Expected: {}\n".format(expected.split("S")[0]))
 #                         fout.write("Expected     : {}\n\n".format(("".join(idx2char[idx] for idx in np.fromstring(expected, np.int32))).split("S")[0]))
                         fout.write("Got     : {}\n\n".format(("".join(idx2char[idx] for idx in np.fromstring(got, np.int32))).split("S")[0]))
                         fout.flush()
-#                         converted = []
-#                         for _output in outputs:
-#                             converted.append("".join(idx2char[idx] for idx in _output))
-#                         print("\n".join(converted))
-#                         
-#                         converted = []
-#                         for _output in _preds:
-#                             converted.append("".join(idx2char[idx] for idx in _output))
-#                         print("================")
-#                         print("\n".join(converted))
-        
                                           
 if __name__ == '__main__':
     eval()

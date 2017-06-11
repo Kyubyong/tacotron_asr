@@ -18,9 +18,6 @@ def load_vocab():
     char2idx = {char:idx for idx, char in enumerate(vocab)}
     idx2char = {idx:char for idx, char in enumerate(vocab)}
     return char2idx, idx2char
-
-
-   
                 
 def text2idx(text):
     # Load vocabulary
@@ -35,13 +32,13 @@ def load_train_data():
     """We train on the whole data but the last mini-batch."""
     
     sound_fpaths, converteds = pickle.load(open('data/train.pkl', 'rb'))
-    
     return sound_fpaths, converteds
  
 def load_eval_data():
     from utils import get_spectrogram, reduce_frames
     """We evaluate on the last mini-batch."""
     sound_fpaths, texts = pickle.load(open('data/eval.pkl', 'rb'))
+
     # Extract spectrogram from sound_fpaths
     char2idx, idx2char = load_vocab() 
     
