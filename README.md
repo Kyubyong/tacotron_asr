@@ -35,7 +35,7 @@ Modified architecture for speech recognition
 ## Training
   * STEP 1. Adjust hyper parameters in `hyperparams.py` if necessary.
   * STEP 2. Download and extract [the audio data](https://dl.dropboxusercontent.com/u/42868014/WEB.zip) and its [text](https://dl.dropboxusercontent.com/u/42868014/text.csv).
-  * STEP 3. Run `train.py`. Or you can download my [pretrained file](https://dl.dropboxusercontent.com/u/42868014/tacotron_asr/logdir.zip)
+  * STEP 3. Run `train.py`. Or you can download my [pretrained file](https://www.dropbox.com/s/n55aqjx6mge96pb/logdir.zip?dl=0)
 
 ## Evaluation
   * Run `eval.py` to get speech recognition results for the test set.
